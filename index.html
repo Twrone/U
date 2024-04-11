@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lienzo Persistente</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #eee;
+        }
+
+        canvas {
+            display: block;
+            margin: auto;
+            touch-action: none;
+            border: 2px solid #ccc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            background-color: #f9f5eb; /* Color de fondo envejecido */
+        }
+
+        #color-buttons {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+        }
+
+        .color-button {
+            display: inline-block;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            margin: 10px;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out;
+        }
+
+        .color-button:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas"></canvas>
+
+    <div id="color-buttons">
+        <div class="color-button" style="background-color: black;" onclick="changeColor('black')"></div>
+        <div class="color-button" style="background-color: red;" onclick="changeColor('red')"></div>
+        <div class="color-button" style="background-color: green;" onclick="changeColor('green')"></div>
+        <div class="color-button" style="background-color: yellow;" onclick="changeColor('yellow')"></div>
+        <div class="color-button" style="background-color: white; border: 2px solid black;" onclick="clearCanvas()"></div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        let drawings = [];
+        let currentColor = 'black';
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let isDrawing = false;
+
+        canvas.addEventListener('mousedown', startDrawing);
+        canvas.addEventListener('touchstart', startDrawing);
+
+        canvas.addEventListener('mousemove', draw);
+        canvas.addEventListener('touchmove', draw);
+
+        canvas.addEventListener('mouseup', stopDrawing);
+        canvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(event) {
+            isDrawing = true;
+            draw(event);
+        }
+
+        function draw(event) {
+            if (!isDrawing) return;
+
+            const x = event.clientX || event.touches[0].clientX;
+            const y = event.clientY || event.touches[0].clientY;
+
+            context.lineWidth = 5;
+            context.lineCap = 'round';
+            context.strokeStyle = currentColor;
+
+            context.lineTo(x, y);
+            context.stroke();
+            context.beginPath();
+            context.moveTo(x, y);
+
+            drawings.push({ x, y, color: currentColor, timestamp: Date.now() });
+            saveDrawings();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+            context.beginPath();
+        }
+
+        function changeColor(color) {
+            currentColor = color;
+        }
+
+        function clearCanvas() {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            drawings = [];
+            saveDrawings();
+        }
+
+        function saveDrawings() {
+            localStorage.setItem('savedDrawings', JSON.stringify(drawings));
+        }
+
+        window.onload = function() {
+            const savedDrawings = localStorage.getItem('savedDrawings');
+            if (savedDrawings) {
+                drawings = JSON.parse(savedDrawings);
+                redrawDrawings();
+            }
+        };
+
+        function redrawDrawings() {
+            const currentTime = Date.now();
+            context.clearRect(0, 0, canvas.width, canvas.height);
+            drawings.forEach(point => {
+                const timeElapsed = currentTime - point.timestamp;
+                const opacity = Math.max(0, 1 - timeElapsed / (24 * 60 * 60 * 1000));
+
+                context.globalAlpha = opacity;
+                context.lineWidth = 5;
+                context.lineCap = 'round';
+                context.strokeStyle = point.color;
+
+                context.lineTo(point.x, point.y);
+                context.stroke();
+                context.beginPath();
+                context.moveTo(point.x, point.y);
+
+                context.globalAlpha = 1;
+            });
+        }
+    </script>
+</body>
+</html>
